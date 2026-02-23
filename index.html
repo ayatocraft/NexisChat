@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>NEXIS</title>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+<style>
+body{
+  background:#000;
+  color:#fff;
+  font-family:sans-serif;
+  padding:15px;
+}
+
+button{
+  padding:10px;
+  margin:5px;
+  background:#111;
+  color:#fff;
+  border:1px solid #333;
+}
+
+input{
+  padding:10px;
+  background:#111;
+  color:#fff;
+  border:1px solid #333;
+}
+
+.chat{
+  height:300px;
+  overflow:auto;
+  border:1px solid #222;
+  padding:10px;
+  margin:10px 0;
+}
+
+.self{
+  color:#4da6ff;
+}
+</style>
+</head>
+
+<body>
+
+<h2>NEXIS</h2>
+<div id="app"></div>
+
+<script>
+
+/* ===== 初期化 ===== */
+
+let myId = localStorage.getItem("nexis_id");
+let myName = localStorage.getItem("nexis_name");
+
+let friends = JSON.parse(localStorage.getItem("nexis_friends") || "{}");
+let chats = JSON.parse(localStorage.getItem("nexis_chats") || "{}");
+
+if(!myId){
+  myId = crypto.randomUUID();
+  localStorage.setItem("nexis_id", myId);
+}
+
+function save(){
+  localStorage.setItem("nexis_friends", JSON.stringify(friends));
+  localStorage.setItem("nexis_chats", JSON.stringify(chats));
+}
+
+/* ===== 画面描画 ===== */
+
+function renderHome(){
+
+  const app = document.getElementById("app");
+
+  if(!myName){
+    app.innerHTML = `
+      <input id="name" placeholder="名前">
+      <button onclick="setName()">開始</button>
+    `;
+    return;
+  }
+
+  let list = Object.keys(friends).map(id=>
+    `<div>
+      ${friends[id].name || "Unknown"}
+      <button onclick="openChat('${id}')">開く</button>
+    </div>`
+  ).join("");
+
+  app.innerHTML = `
+    <button onclick="showQR()">自分のQR</button>
+    <button onclick="addFriend()">友達追加</button>
+
+    <h3>友達一覧</h3>
+    <div>${list}</div>
+  `;
+}
+
+function setName(){
+  myName = document.getElementById("name").value;
+  localStorage.setItem("nexis_name", myName);
+  renderHome();
+}
+
+/* ===== QR表示 ===== */
+
+function showQR(){
+
+  document.getElementById("app").innerHTML = `
+    <h3>友達にこのQRを見せる</h3>
+    <canvas id="qr"></canvas>
+
+    <p>ID（コピーして共有）</p>
+    <textarea readonly style="width:100%;height:60px;">
+${myId}
+    </textarea>
+
+    <button onclick="renderHome()">戻る</button>
+  `;
+
+  QRCode.toCanvas(
+    document.getElementById("qr"),
+    myId,
+    { width:220 }
+  );
+}
+
+/* ===== 友達追加 ===== */
+
+function addFriend(){
+
+  let id = prompt("友達のIDを入力");
+
+  if(!id) return;
+
+  friends[id] = { name:"Friend" };
+
+  save();
+  renderHome();
+}
+
+/* ===== チャット ===== */
+
+function getChannelId(a,b){
+  return ["chat",...[a,b].sort()].join("-");
+}
+
+function openChat(friendId){
+
+  const channelId = getChannelId(myId, friendId);
+
+  if(!chats[channelId]) chats[channelId]=[];
+
+  function render(){
+
+    document.getElementById("chatbox").innerHTML =
+      chats[channelId].map(m=>
+        `<div class="${m.sender===myId?'self':''}">
+          ${m.text}
+        </div>`
+      ).join("");
+  }
+
+  document.getElementById("app").innerHTML = `
+    <div class="chat" id="chatbox"></div>
+
+    <input id="msg">
+    <button onclick="sendMsg()">送信</button>
+    <button onclick="renderHome()">戻る</button>
+  `;
+
+  render();
+
+  setInterval(render,3000);
+
+  window.sendMsg = function(){
+
+    let text = document.getElementById("msg").value;
+    if(!text) return;
+
+    chats[channelId].push({
+      text,
+      sender:myId,
+      time:Date.now()
+    });
+
+    save();
+    render();
+
+    document.getElementById("msg").value="";
+  }
+}
+
+/* ===== 起動 ===== */
+
+renderHome();
+
+</script>
+
+</body>
+</html>
