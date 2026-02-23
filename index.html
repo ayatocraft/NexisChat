@@ -8,9 +8,6 @@
 <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#111111">
-
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0f0f14;color:white}
 header{padding:16px;text-align:center;font-weight:600;font-size:20px;background:#111}
@@ -130,10 +127,20 @@ function init(){
   ably=new Ably.Realtime(API_KEY);
 
   const inbox=ably.channels.get("inbox-"+myId);
+
   inbox.subscribe(msg=>{
     const d=msg.data;
+
+    // 🔥 友達追加通知
+    if(msg.name==="friend-add"){
+      autoAddFriend(d.sender,d.senderName);
+      return;
+    }
+
+    // 通常メッセージ
     autoAddFriend(d.sender,d.senderName);
     saveHistory(d.sender,d,false);
+
     if(currentFriend===d.sender){
       addMessage(d.text,false,d.senderName);
     }
@@ -145,7 +152,15 @@ function init(){
 function manualConnect(){
   const id=document.getElementById("friendIdInput").value.trim();
   if(!id) return;
+
   autoAddFriend(id,"Unknown");
+
+  // 🔥 相手へ友達追加通知
+  ably.channels.get("inbox-"+id).publish("friend-add",{
+    sender:myId,
+    senderName:myName
+  });
+
   document.getElementById("friendIdInput").value="";
 }
 
@@ -267,10 +282,6 @@ function openFileDropWithFriend(){
   }
   window.location.href=
     "https://ayatocraft.github.io/NexisFileDrop/?to="+currentFriend;
-}
-
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("service-worker.js");
 }
 </script>
 
