@@ -78,6 +78,10 @@ a{color:#8ab4ff;text-decoration:none}
   <div class="row">
     <input id="msgInput" placeholder="メッセージ" style="flex:1">
     <button onclick="sendMsg()">送信</button>
+    <button onclick="openFileDropWithFriend()" 
+        style="margin-top:8px;background:#9b5cff;width:100%">
+  📎 この友達にFileDrop
+</button>
   </div>
 
   <button onclick="deleteFriend()" style="margin-top:10px;background:#ff4d4d">
@@ -251,7 +255,19 @@ function deleteFriend(){
 }
 
 function openFileDrop(){
+  // ホーム画面から開く場合（ID指定なし）
   window.location.href="https://ayatocraft.github.io/NexisFileDrop";
+}
+
+function openFileDropWithFriend(){
+  if(!currentFriend){
+    alert("友達を選択してください");
+    return;
+  }
+
+  // 友達IDをURLパラメータで渡す
+  window.location.href=
+    "https://ayatocraft.github.io/NexisFileDrop/?to="+currentFriend;
 }
 
 if("serviceWorker" in navigator){
@@ -261,3 +277,4 @@ if("serviceWorker" in navigator){
 
 </body>
 </html>
+
