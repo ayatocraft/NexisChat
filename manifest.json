@@ -1,6 +1,6 @@
 {
   "name": "Nexis Chat",
-  "short_name": "Nexis",
+  "short_name": "Nexis Chat",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0f0f14",
