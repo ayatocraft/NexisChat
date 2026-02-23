@@ -1,202 +1,206 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NEXIS</title>
-
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-
+<script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 body{
-  background:#000;
-  color:#fff;
-  font-family:sans-serif;
-  padding:15px;
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#0f0f14;
+  color:white;
 }
-
+header{
+  padding:16px;
+  text-align:center;
+  font-weight:600;
+  font-size:20px;
+  background:#111;
+}
+.container{padding:16px;}
+input,button{
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  font-size:14px;
+}
 button{
-  padding:10px;
-  margin:5px;
-  background:#111;
-  color:#fff;
-  border:1px solid #333;
+  background:#5b7cff;
+  color:white;
 }
-
-input{
-  padding:10px;
-  background:#111;
-  color:#fff;
-  border:1px solid #333;
+#chat{
+  height:55vh;
+  overflow-y:auto;
+  margin:12px 0;
 }
-
-.chat{
-  height:300px;
-  overflow:auto;
-  border:1px solid #222;
-  padding:10px;
-  margin:10px 0;
+.msg{
+  padding:8px 12px;
+  margin:6px 0;
+  border-radius:12px;
+  max-width:75%;
+  word-break:break-word;
 }
-
-.self{
-  color:#4da6ff;
-}
+.me{background:#5b7cff;margin-left:auto;}
+.other{background:#2a2a35;}
+.row{display:flex;gap:8px;}
+#qr{margin:12px 0;}
+.small{font-size:12px;opacity:0.6;}
 </style>
 </head>
-
 <body>
 
-<h2>NEXIS</h2>
-<div id="app"></div>
+<header>NEXIS</header>
+<div class="container">
+
+<div id="setup">
+  <h3>初期設定</h3>
+  <input id="nameInput" placeholder="あなたの名前">
+  <button onclick="saveName()">保存</button>
+</div>
+
+<div id="main" style="display:none">
+
+  <div>
+    <div class="small">あなたのQR（友達に見せる）</div>
+    <div id="qr"></div>
+  </div>
+
+  <hr>
+
+  <div>
+    <input id="friendIdInput" placeholder="友達IDを貼り付け">
+    <button onclick="addFriend()">追加</button>
+  </div>
+
+  <div id="chat"></div>
+
+  <div class="row">
+    <input id="msgInput" placeholder="メッセージ" style="flex:1">
+    <button onclick="sendMsg()">送信</button>
+  </div>
+
+  <button onclick="clearChat()" style="margin-top:10px;background:#ff4d4d">
+    チャット削除
+  </button>
+
+</div>
+</div>
 
 <script>
+/* =========================
+   🔑 APIキーをここに入れる
+========================= */
+const API_KEY = "YOUR_ABLY_API_KEY";
 
-/* ===== 初期化 ===== */
+/* ========================= */
 
-let myId = localStorage.getItem("nexis_id");
 let myName = localStorage.getItem("nexis_name");
-
-let friends = JSON.parse(localStorage.getItem("nexis_friends") || "{}");
-let chats = JSON.parse(localStorage.getItem("nexis_chats") || "{}");
+let myId = localStorage.getItem("nexis_id");
+let friendId = localStorage.getItem("nexis_friend");
+let channel;
+let ably;
 
 if(!myId){
   myId = crypto.randomUUID();
   localStorage.setItem("nexis_id", myId);
 }
 
-function save(){
-  localStorage.setItem("nexis_friends", JSON.stringify(friends));
-  localStorage.setItem("nexis_chats", JSON.stringify(chats));
+if(myName){
+  init();
+}else{
+  document.getElementById("setup").style.display="block";
 }
 
-/* ===== 画面描画 ===== */
+function saveName(){
+  const name = document.getElementById("nameInput").value.trim();
+  if(!name) return;
+  localStorage.setItem("nexis_name", name);
+  myName = name;
+  init();
+}
 
-function renderHome(){
+function init(){
+  document.getElementById("setup").style.display="none";
+  document.getElementById("main").style.display="block";
 
-  const app = document.getElementById("app");
+  new QRCode(document.getElementById("qr"), myId);
 
-  if(!myName){
-    app.innerHTML = `
-      <input id="name" placeholder="名前">
-      <button onclick="setName()">開始</button>
-    `;
+  if(API_KEY === "YOUR_ABLY_API_KEY"){
+    alert("Ably APIキーを入力してください");
     return;
   }
 
-  let list = Object.keys(friends).map(id=>
-    `<div>
-      ${friends[id].name || "Unknown"}
-      <button onclick="openChat('${id}')">開く</button>
-    </div>`
-  ).join("");
+  ably = new Ably.Realtime(API_KEY);
 
-  app.innerHTML = `
-    <button onclick="showQR()">自分のQR</button>
-    <button onclick="addFriend()">友達追加</button>
-
-    <h3>友達一覧</h3>
-    <div>${list}</div>
-  `;
+  if(friendId){
+    connectChannel();
+  }
 }
-
-function setName(){
-  myName = document.getElementById("name").value;
-  localStorage.setItem("nexis_name", myName);
-  renderHome();
-}
-
-/* ===== QR表示 ===== */
-
-function showQR(){
-
-  document.getElementById("app").innerHTML = `
-    <h3>友達にこのQRを見せる</h3>
-    <canvas id="qr"></canvas>
-
-    <p>ID（コピーして共有）</p>
-    <textarea readonly style="width:100%;height:60px;">
-${myId}
-    </textarea>
-
-    <button onclick="renderHome()">戻る</button>
-  `;
-
-  QRCode.toCanvas(
-    document.getElementById("qr"),
-    myId,
-    { width:220 }
-  );
-}
-
-/* ===== 友達追加 ===== */
 
 function addFriend(){
-
-  let id = prompt("友達のIDを入力");
-
+  const id = document.getElementById("friendIdInput").value.trim();
   if(!id) return;
-
-  friends[id] = { name:"Friend" };
-
-  save();
-  renderHome();
+  localStorage.setItem("nexis_friend", id);
+  friendId = id;
+  connectChannel();
 }
 
-/* ===== チャット ===== */
+function connectChannel(){
+  const room = [myId, friendId].sort().join("-");
+  channel = ably.channels.get(room);
 
-function getChannelId(a,b){
-  return ["chat",...[a,b].sort()].join("-");
+  channel.subscribe((msg)=>{
+    if(msg.data.sender === myId) return;
+    addMessage(msg.data.text, false);
+    saveLocal(msg.data.text, false);
+  });
+
+  loadLocal();
 }
 
-function openChat(friendId){
+function sendMsg(){
+  const input = document.getElementById("msgInput");
+  const text = input.value.trim();
+  if(!text || !channel) return;
 
-  const channelId = getChannelId(myId, friendId);
+  channel.publish("message", {
+    sender: myId,
+    text: text
+  });
 
-  if(!chats[channelId]) chats[channelId]=[];
-
-  function render(){
-
-    document.getElementById("chatbox").innerHTML =
-      chats[channelId].map(m=>
-        `<div class="${m.sender===myId?'self':''}">
-          ${m.text}
-        </div>`
-      ).join("");
-  }
-
-  document.getElementById("app").innerHTML = `
-    <div class="chat" id="chatbox"></div>
-
-    <input id="msg">
-    <button onclick="sendMsg()">送信</button>
-    <button onclick="renderHome()">戻る</button>
-  `;
-
-  render();
-
-  setInterval(render,3000);
-
-  window.sendMsg = function(){
-
-    let text = document.getElementById("msg").value;
-    if(!text) return;
-
-    chats[channelId].push({
-      text,
-      sender:myId,
-      time:Date.now()
-    });
-
-    save();
-    render();
-
-    document.getElementById("msg").value="";
-  }
+  addMessage(text, true);
+  saveLocal(text, true);
+  input.value="";
 }
 
-/* ===== 起動 ===== */
+function addMessage(text, mine){
+  const div = document.createElement("div");
+  div.className = "msg " + (mine ? "me":"other");
+  div.innerText = text;
+  document.getElementById("chat").appendChild(div);
+  document.getElementById("chat").scrollTop = 999999;
+}
 
-renderHome();
+function saveLocal(text, mine){
+  let history = JSON.parse(localStorage.getItem("nexis_chat") || "[]");
+  history.push({text, mine});
+  localStorage.setItem("nexis_chat", JSON.stringify(history));
+}
 
+function loadLocal(){
+  let history = JSON.parse(localStorage.getItem("nexis_chat") || "[]");
+  history.forEach(m=>{
+    addMessage(m.text, m.mine);
+  });
+}
+
+function clearChat(){
+  localStorage.removeItem("nexis_chat");
+  document.getElementById("chat").innerHTML="";
+}
 </script>
 
 </body>
