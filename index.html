@@ -7,47 +7,18 @@
 <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-body{
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-  background:#0f0f14;
-  color:white;
-}
-header{
-  padding:16px;
-  text-align:center;
-  font-weight:600;
-  font-size:20px;
-  background:#111;
-}
-.container{padding:16px;}
-input,button{
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  font-size:14px;
-}
-button{
-  background:#5b7cff;
-  color:white;
-}
-#chat{
-  height:55vh;
-  overflow-y:auto;
-  margin:12px 0;
-}
-.msg{
-  padding:8px 12px;
-  margin:6px 0;
-  border-radius:12px;
-  max-width:75%;
-  word-break:break-word;
-}
-.me{background:#5b7cff;margin-left:auto;}
-.other{background:#2a2a35;}
-.row{display:flex;gap:8px;}
-#qr{margin:12px 0;}
-.small{font-size:12px;opacity:0.6;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0f0f14;color:white}
+header{padding:16px;text-align:center;font-weight:600;font-size:20px;background:#111}
+.container{padding:16px}
+input,button{padding:10px;border:none;border-radius:8px;font-size:14px}
+button{background:#5b7cff;color:white}
+#chat{height:50vh;overflow-y:auto;margin:12px 0}
+.msg{padding:8px 12px;margin:6px 0;border-radius:12px;max-width:75%;word-break:break-word}
+.me{background:#5b7cff;margin-left:auto}
+.other{background:#2a2a35}
+.row{display:flex;gap:8px}
+.small{font-size:12px;opacity:0.6}
+.friend{margin:6px 0;padding:6px;background:#1a1a22;border-radius:8px;font-size:12px}
 </style>
 </head>
 <body>
@@ -63,45 +34,42 @@ button{
 
 <div id="main" style="display:none">
 
-  <div>
-    <div class="small">あなたのQR（友達に見せる）</div>
-    <div id="qr"></div>
-  </div>
+<div class="small">あなたのQR（友達に見せる）</div>
+<div id="qr"></div>
 
-  <hr>
+<hr>
 
-  <div>
-    <input id="friendIdInput" placeholder="友達IDを貼り付け">
-    <button onclick="addFriend()">追加</button>
-  </div>
+<div class="row">
+  <input id="friendIdInput" placeholder="友達IDを貼り付け" style="flex:1">
+  <button onclick="manualConnect()">接続</button>
+</div>
 
-  <div id="chat"></div>
+<h4>友達</h4>
+<div id="friendList"></div>
 
-  <div class="row">
-    <input id="msgInput" placeholder="メッセージ" style="flex:1">
-    <button onclick="sendMsg()">送信</button>
-  </div>
+<div id="chat"></div>
 
-  <button onclick="clearChat()" style="margin-top:10px;background:#ff4d4d">
-    チャット削除
-  </button>
+<div class="row">
+  <input id="msgInput" placeholder="メッセージ" style="flex:1">
+  <button onclick="sendMsg()">送信</button>
+</div>
+
+<button onclick="clearChat()" style="margin-top:10px;background:#ff4d4d">
+チャット削除
+</button>
 
 </div>
 </div>
 
 <script>
-/* =========================
-   🔑 APIキーをここに入れる
-========================= */
 const API_KEY = "JW3Hvw.fw1o0A:-zV3VatQkBUx-hVmtwFGE6Bwbv_wG4kIoz7LHOKNawY";
-
-/* ========================= */
 
 let myName = localStorage.getItem("nexis_name");
 let myId = localStorage.getItem("nexis_id");
-let friendId = localStorage.getItem("nexis_friend");
-let channel;
+let friends = JSON.parse(localStorage.getItem("nexis_friends") || "[]");
+let currentFriend = null;
 let ably;
+let channel;
 
 if(!myId){
   myId = crypto.randomUUID();
@@ -125,85 +93,108 @@ function saveName(){
 function init(){
   document.getElementById("setup").style.display="none";
   document.getElementById("main").style.display="block";
-
   new QRCode(document.getElementById("qr"), myId);
 
-  if(API_KEY === "YOUR_ABLY_API_KEY"){
+  if(API_KEY==="YOUR_ABLY_API_KEY"){
     alert("Ably APIキーを入力してください");
     return;
   }
 
   ably = new Ably.Realtime(API_KEY);
 
-  if(friendId){
-    connectChannel();
+  // 🔥 自分専用チャンネル（自動追加用）
+  const inbox = ably.channels.get("inbox-"+myId);
+  inbox.subscribe((msg)=>{
+    const data = msg.data;
+    autoAddFriend(data.sender);
+    openChat(data.sender);
+    addMessage(data.text,false);
+    saveHistory(data.sender,data.text,false);
+  });
+
+  renderFriends();
+}
+
+function manualConnect(){
+  const id = document.getElementById("friendIdInput").value.trim();
+  if(!id) return;
+  autoAddFriend(id);
+  openChat(id);
+  document.getElementById("friendIdInput").value="";
+}
+
+function autoAddFriend(id){
+  if(!friends.includes(id)){
+    friends.push(id);
+    localStorage.setItem("nexis_friends", JSON.stringify(friends));
+    renderFriends();
   }
 }
 
-function addFriend(){
-  const id = document.getElementById("friendIdInput").value.trim();
-  if(!id) return;
-  localStorage.setItem("nexis_friend", id);
-  friendId = id;
-  connectChannel();
+function renderFriends(){
+  const list=document.getElementById("friendList");
+  list.innerHTML="";
+  friends.forEach(id=>{
+    const div=document.createElement("div");
+    div.className="friend";
+    div.innerHTML=`
+      <span onclick="openChat('${id}')" style="cursor:pointer">${id.slice(0,8)}...</span>
+      <button onclick="removeFriend('${id}')" style="float:right;background:#ff4d4d">×</button>
+    `;
+    list.appendChild(div);
+  });
 }
 
-function connectChannel(){
-  const room = [myId, friendId].sort().join("-");
-  channel = ably.channels.get(room);
+function removeFriend(id){
+  friends=friends.filter(f=>f!==id);
+  localStorage.setItem("nexis_friends", JSON.stringify(friends));
+  renderFriends();
+}
 
-  channel.subscribe((msg)=>{
-    if(msg.data.sender === myId) return;
-    addMessage(msg.data.text, false);
-    saveLocal(msg.data.text, false);
-  });
-
-  loadLocal();
+function openChat(id){
+  currentFriend=id;
+  document.getElementById("chat").innerHTML="";
+  loadHistory(id);
 }
 
 function sendMsg(){
-  const input = document.getElementById("msgInput");
-  const text = input.value.trim();
-  if(!text || !channel) return;
+  const input=document.getElementById("msgInput");
+  const text=input.value.trim();
+  if(!text||!currentFriend) return;
 
-  channel.publish("message", {
-    sender: myId,
-    text: text
-  });
+  const inbox=ably.channels.get("inbox-"+currentFriend);
+  inbox.publish("message",{sender:myId,text:text});
 
-  addMessage(text, true);
-  saveLocal(text, true);
+  addMessage(text,true);
+  saveHistory(currentFriend,text,true);
   input.value="";
 }
 
-function addMessage(text, mine){
-  const div = document.createElement("div");
-  div.className = "msg " + (mine ? "me":"other");
-  div.innerText = text;
+function addMessage(text,mine){
+  const div=document.createElement("div");
+  div.className="msg "+(mine?"me":"other");
+  div.innerText=text;
   document.getElementById("chat").appendChild(div);
-  document.getElementById("chat").scrollTop = 999999;
+  document.getElementById("chat").scrollTop=999999;
 }
 
-function saveLocal(text, mine){
-  let history = JSON.parse(localStorage.getItem("nexis_chat") || "[]");
-  history.push({text, mine});
-  localStorage.setItem("nexis_chat", JSON.stringify(history));
+function saveHistory(friend,text,mine){
+  let history=JSON.parse(localStorage.getItem("chat_"+friend)||"[]");
+  history.push({text,mine});
+  localStorage.setItem("chat_"+friend,JSON.stringify(history));
 }
 
-function loadLocal(){
-  let history = JSON.parse(localStorage.getItem("nexis_chat") || "[]");
-  history.forEach(m=>{
-    addMessage(m.text, m.mine);
-  });
+function loadHistory(friend){
+  let history=JSON.parse(localStorage.getItem("chat_"+friend)||"[]");
+  history.forEach(m=>addMessage(m.text,m.mine));
 }
 
 function clearChat(){
-  localStorage.removeItem("nexis_chat");
+  if(!currentFriend) return;
+  localStorage.removeItem("chat_"+currentFriend);
   document.getElementById("chat").innerHTML="";
 }
 </script>
 
 </body>
 </html>
-
-
