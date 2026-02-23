@@ -27,6 +27,7 @@ button{background:#5b7cff;color:white}
 .small{font-size:11px;opacity:0.6}
 .nameLabel{font-size:11px;opacity:0.6;margin-bottom:2px}
 a{color:#8ab4ff;text-decoration:none}
+hr{border:0;border-top:1px solid #2a2a35;margin:16px 0}
 </style>
 </head>
 <body>
@@ -60,7 +61,8 @@ a{color:#8ab4ff;text-decoration:none}
     <button onclick="manualConnect()">接続</button>
   </div>
 
-  <button onclick="openFileDrop()" style="margin-top:12px;width:100%;background:#9b5cff">
+  <button onclick="openFileDropHome()" 
+          style="margin-top:12px;width:100%;background:#9b5cff">
     📎 Nexis FileDrop を開く
   </button>
 
@@ -78,13 +80,15 @@ a{color:#8ab4ff;text-decoration:none}
   <div class="row">
     <input id="msgInput" placeholder="メッセージ" style="flex:1">
     <button onclick="sendMsg()">送信</button>
-    <button onclick="openFileDropWithFriend()" 
-        style="margin-top:8px;background:#9b5cff;width:100%">
-  📎 この友達にFileDrop
-</button>
   </div>
 
-  <button onclick="deleteFriend()" style="margin-top:10px;background:#ff4d4d">
+  <button onclick="openFileDropWithFriend()" 
+          style="margin-top:8px;background:#9b5cff;width:100%">
+    📎 この友達にFileDrop
+  </button>
+
+  <button onclick="deleteFriend()" 
+          style="margin-top:10px;background:#ff4d4d;width:100%">
     友達を削除
   </button>
 </div>
@@ -148,13 +152,11 @@ function manualConnect(){
 function autoAddFriend(id,name){
   if(!friends[id]){
     friends[id]={name:name||"Unknown"};
-    localStorage.setItem("nexis_friends",JSON.stringify(friends));
-    renderFriends();
   }else if(name && friends[id].name==="Unknown"){
     friends[id].name=name;
-    localStorage.setItem("nexis_friends",JSON.stringify(friends));
-    renderFriends();
   }
+  localStorage.setItem("nexis_friends",JSON.stringify(friends));
+  renderFriends();
 }
 
 function renderFriends(){
@@ -254,8 +256,7 @@ function deleteFriend(){
   }
 }
 
-function openFileDrop(){
-  // ホーム画面から開く場合（ID指定なし）
+function openFileDropHome(){
   window.location.href="https://ayatocraft.github.io/NexisFileDrop";
 }
 
@@ -264,8 +265,6 @@ function openFileDropWithFriend(){
     alert("友達を選択してください");
     return;
   }
-
-  // 友達IDをURLパラメータで渡す
   window.location.href=
     "https://ayatocraft.github.io/NexisFileDrop/?to="+currentFriend;
 }
@@ -277,4 +276,3 @@ if("serviceWorker" in navigator){
 
 </body>
 </html>
-
