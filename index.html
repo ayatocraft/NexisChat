@@ -83,10 +83,9 @@ hr{border:0;border-top:1px solid #2a2a35;margin:16px 0}
           style="margin-top:8px;background:#9b5cff;width:100%">
     📎 この友達にFileDrop
   </button>
-<button onclick="startviceo(id){" 
-          style="margin-top:8px;background:#9b5cff;width:100%">
-    📎 この友達にビデオ通話
-  </button>
+  <button onclick="startVideoCall()">
+🎥 Nexis Video通話
+</button>
   <button onclick="deleteFriend()" 
           style="margin-top:10px;background:#ff4d4d;width:100%">
     友達を削除
@@ -294,16 +293,22 @@ function openFileDropWithFriend(){
   window.location.href=
     "https://ayatocraft.github.io/NexisFileDrop/?to="+currentFriend;
 }
-  function startVideo(id){
+function startVideoCall(){
 
-  window.location.href=
-  "https://ayatocraft.github.io/NexisVideo/?to="+id;
+ if(!currentFriend){
+   alert("友達を選択してください");
+   return;
+ }
+
+ window.location.href=
+ "https://ayatocraft.github.io/NexisVideo/?to="+currentFriend;
 
 }
 </script>
 
 </body>
 </html>
+
 
 
 
