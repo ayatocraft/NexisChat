@@ -130,32 +130,42 @@ function init(){
   const inbox=ably.channels.get("inbox-"+myId);
 
   // 🔥 接続後に履歴を読む
-  ably.connection.once("connected", async () => {
+ably.connection.once("connected", () => {
 
-    const result = await inbox.history({limit:100});
+  inbox.history({ limit: 100 }, (err, result) => {
+
+    if (err) {
+      console.error("history error:", err);
+      return;
+    }
+
+    if (!result || !result.items) return;
+
     const messages = result.items.reverse();
 
-    messages.forEach(msg=>{
-      if(msg.name!=="message") return;
+    messages.forEach(msg => {
+      if (msg.name !== "message") return;
 
       const d = msg.data;
+      if (d.sender === myId) return;
 
-      if(d.sender===myId) return;
+      autoAddFriend(d.sender, d.senderName);
 
-      autoAddFriend(d.sender,d.senderName);
-
-      let history = JSON.parse(localStorage.getItem("chat_"+d.sender)||"[]");
+      let history = JSON.parse(localStorage.getItem("chat_" + d.sender) || "[]");
 
       const alreadyExists = history.some(m =>
-        m.text===d.text &&
-        m.name===d.senderName
+        m.text === d.text &&
+        m.name === d.senderName
       );
 
-      if(!alreadyExists){
-        saveHistory(d.sender,d,false);
+      if (!alreadyExists) {
+        saveHistory(d.sender, d, false);
       }
     });
+
   });
+
+});
 
   // 🔥 通常受信
   inbox.subscribe(msg=>{
@@ -335,6 +345,7 @@ function startVideoCall(){
 
 </body>
 </html>
+
 
 
 
