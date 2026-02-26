@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexis Reset</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
+        .reset-btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .reset-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="gradient-bg h-screen flex items-center justify-center p-6">
+
+    <div class="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-8 text-center border border-slate-100">
+        <div class="mb-6">
+            <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tighter italic uppercase">Nexis Reset</h1>
+            <p class="text-slate-400 text-xs mt-2 font-bold leading-relaxed">
+                ブラウザに保存されているNexisシリーズの<br>設定・ルーム・プロフィールをすべて消去します。
+            </p>
+        </div>
+
+        <div class="space-y-3 mb-8 text-left bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div class="flex items-center text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span> 対象サービス
+            </div>
+            <ul class="text-[11px] text-slate-600 font-bold space-y-1 ml-4 list-disc">
+                <li>NexisChat (チャット)</li>
+                <li>NexisVideo (ビデオ通話)</li>
+                <li>NexisFileDrop (ファイル転送)</li>
+                <li>NexisEducation (教師/生徒グループルーム)</li>
+            </ul>
+        </div>
+
+        <button onclick="executeFullReset()" class="reset-btn w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-red-200 uppercase tracking-widest mb-4">
+            全データを消去する
+        </button>
+
+        <p id="status-msg" class="text-[10px] font-bold text-slate-400 italic">※消去したデータは復元できません</p>
+    </div>
+
+    <script>
+        function executeFullReset() {
+            if (!confirm("本当にすべてのNexis関連データを消去しますか？\n各アプリのログイン情報や作成したルームIDも消去されます。")) {
+                return;
+            }
+
+            try {
+                // 1. localStorageの全削除
+                localStorage.clear();
+
+                // 2. sessionStorageの全削除
+                sessionStorage.clear();
+
+                // 3. Cookieの全削除
+                const cookies = document.cookie.split(";");
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i];
+                    const eqPos = cookie.indexOf("=");
+                    const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                }
+
+                // 成功時の演出
+                const btn = document.querySelector('button');
+                const status = document.getElementById('status-msg');
+                
+                btn.disabled = true;
+                btn.classList.replace('bg-red-600', 'bg-emerald-500');
+                btn.innerText = "RESET COMPLETED";
+                
+                status.innerText = "すべてのデータが正常にクリーンアップされました。";
+                status.classList.replace('text-slate-400', 'text-emerald-500');
+
+                // 3秒後にリロードして完全に状態をリセット
+                setTimeout(() => {
+                    alert("リセットが完了しました。アプリを再度開き直してください。");
+                    location.reload();
+                }, 1500);
+
+            } catch (error) {
+                console.error(error);
+                alert("エラーが発生しました: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
