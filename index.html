@@ -66,6 +66,10 @@ hr{border:0;border-top:1px solid #2a2a35;margin:16px 0}
         style="margin-top:12px;width:100%;background:#9b5cff">
     🔔 Nexis Notifier でNexis Chatの通知を受け取る
 </button>
+  <button onclick="openreset()" 
+        style="margin-top:12px;width:100%;background:#9b5cff">
+    💾Nexis ResetでNexisサービスをリセット
+</button>
   <h4>友達</h4>
   <div id="friendList"></div>
 </div>
@@ -359,10 +363,18 @@ function startVideoCall(){
         "_blank"
     );
 }
+function openreset(){
+    window.open(
+        "\.reset.html"
+        + encodeURIComponent(myId),
+        "_blank"
+    );
+}
 </script>
 
 </body>
 </html>
+
 
 
 
